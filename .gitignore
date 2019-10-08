@@ -1,0 +1,7 @@
+# Sublime Text #
+*.sublime-workspace
+
+# OS Related #
+desktop.ini
+thumbs.db
+.DS_Store
