@@ -38,4 +38,8 @@ func main() {
 	fmt.Println(sg2)
 	sg1.MergeWith(sg2)
 	fmt.Println(sg1)
+
+	// test board.Board
+	board := gl.NewBoard(19, 19)
+	fmt.Println(*board)
 }

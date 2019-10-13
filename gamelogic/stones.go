@@ -1,6 +1,9 @@
 package gamelogic
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // A group of stones, defined by player color and two lists of Points, stones and liberties.
 type StoneGroup struct {
@@ -30,25 +33,31 @@ func (sg StoneGroup) NumStones() int {
 }
 
 // Method for adding a liberty to a StoneGroup.
-func (sg *StoneGroup) AddLiberty(p Point) {
+func (sg *StoneGroup) AddLiberty(p Point) error {
 	if _, b := contains(sg.Liberties, p); !b {
 		sg.Liberties = append(sg.Liberties, p)
+		return nil
+	} else {
+		return errors.New("StoneGroup already contains the given liberty.")
 	}
 }
 
 // Method for removing a liberty to a StoneGroup.
-func (sg *StoneGroup) RemoveLiberty(p Point) {
+func (sg *StoneGroup) RemoveLiberty(p Point) error {
 	if i, b := contains(sg.Liberties, p); b {
 		s := sg.Liberties
 		s[len(s)-1], s[i] = s[i], s[len(s)-1]
     	sg.Liberties = s[:len(s)-1]
+    	return nil
+	} else {
+		return errors.New("StoneGroup already contains the given stone.")
 	}
 }
 
 // Method for merging a StoneGroup with another passed StoneGroup.
-func (sg *StoneGroup) MergeWith(mg StoneGroup) {
+func (sg *StoneGroup) MergeWith(mg StoneGroup) error {
 	if sg.Color != mg.Color {
-		return
+		return errors.New("Cannot merge StoneGroup of different player color.")
 	}
 	cs := sg.Stones
 	for _, e := range mg.Stones {
@@ -66,6 +75,7 @@ func (sg *StoneGroup) MergeWith(mg StoneGroup) {
 	}
 	sg.Stones = cs
 	sg.Liberties = cl
+	return nil
 }
 
 // Utility function checks set membership in a list of points.
