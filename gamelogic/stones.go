@@ -14,7 +14,7 @@ type StoneGroup struct {
 
 // Method implements Stringer interface for StoneGroup struct.
 func (sg StoneGroup) String() string {
-	s1, s2, s3 := "StoneGroup{ ", " -Stones: ", "\n -Liberties: "
+	s1, s2, s3 := "StoneGroup{\n -Color: ", " -Stones: ", "\n -Liberties: "
 	c := "Black\n"
 	if sg.Color != Black {
 		c = "White\n"

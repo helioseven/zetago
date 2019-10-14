@@ -28,16 +28,26 @@ type Board struct {
 
 // Constructor function builds a new Board with passed width and height.
 func NewBoard(h uint16, w uint16) *Board {
-	m := make(map[Point]*StoneGroup)
+	m := make(map[Point]*StoneGroup, w*h)
 	b := Board{h, w, m}
 	return &b
 }
 
 // Method implements Stringer interface for Board struct.
 func (b Board) String() string {
-	s := fmt.Sprint("Board (", b.Width, "x", b.Height, "){\n")
-	for _, v := range(b.StoneMap) {
-		s += fmt.Sprintln(*v)
+	s := fmt.Sprint("Board (", b.Width, "x", b.Height, ") {\n")
+	visited := []*StoneGroup{}
+	for _, e := range b.StoneMap {
+		v := false
+		for _, vsg := range visited {
+			if vsg == e {
+				v = true
+			}
+		}
+		if !v {
+			s += fmt.Sprintln(*e)
+			visited = append(visited, e)
+		}
 	}
 	return s + "}"
 }
@@ -52,13 +62,82 @@ func (b *Board) GetStoneGroup(p Point) *StoneGroup {
 
 // Method adds a stone to the board at a point.
 func (b *Board) PlaceStone(c Player, p Point) error {
+	// error checking
 	if !isOnBoard(*b, p) {
 		return errors.New("Given point is not within the board.")
 	}
 	if b.GetStoneGroup(p) != nil {
 		return errors.New("Given point on the board is already occupied.")
 	}
-	// missing implementation
+
+	// initialize utilities
+	addGroup := func(list []*StoneGroup, item *StoneGroup) []*StoneGroup {
+		for _, e := range list {
+			if e == item {
+				return list
+			}
+		}
+		return append(list, item)
+	}
+	adj_same := []*StoneGroup{}
+	adj_opp := []*StoneGroup{}
+	adj_lib := []Point{}
+
+	// collect information about neighbors
+	for _, e := range p.Neighbors() {
+		if !isOnBoard(*b, e) {
+			continue
+		}
+		nsg := b.GetStoneGroup(e)
+		if nsg == nil {
+			adj_lib = append(adj_lib, e)
+			continue
+		}
+		if nsg.Color == c {
+			adj_same = addGroup(adj_same, nsg)
+		} else {
+			adj_opp = addGroup(adj_opp, nsg)
+		}
+	}
+
+	// apply game logic
+	newsg := &StoneGroup{c, []Point{p}, adj_lib}
+	for _, e := range adj_same {
+		newsg.MergeWith(*e)
+	}
+	for _, e := range newsg.Stones {
+		b.StoneMap[e] = newsg
+	}
+	for _, e := range adj_opp {
+		e.RemoveLiberty(p)
+	}
+	for _, e := range adj_opp {
+		if e.NumLiberties() == 0 {
+			b.removeStones(e)
+		}
+	}
+	return nil
+}
+
+// Method removes a StoneGroup from the board.
+func (b *Board) removeStones(sg *StoneGroup) error {
+	for _, e := range sg.Stones {
+		if b.StoneMap[e] != sg {
+			return errors.New("StoneGroup to be removed does not match board state.")
+		}
+	}
+	for _, e := range sg.Stones {
+		for _, p := range e.Neighbors() {
+			if !isOnBoard(*b, p) {
+				continue
+			}
+			nsg := b.GetStoneGroup(p)
+			if nsg != nil && nsg != sg {
+				nsg.AddLiberty(e)
+			}
+		}
+		b.StoneMap[e] = nil
+	}
 	return nil
 }
 
