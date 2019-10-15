@@ -22,34 +22,36 @@ func (p Point) Neighbors() [4]Point {
 
 // A Board object, defined by width, height, and a map of stone groups.
 type Board struct {
-	Height, Width uint16
+	Width, Height uint16
 	StoneMap map[Point]*StoneGroup
 }
 
 // Constructor function builds a new Board with passed width and height.
-func NewBoard(h uint16, w uint16) *Board {
+func NewBoard(w uint16, h uint16) *Board {
 	m := make(map[Point]*StoneGroup, w*h)
-	b := Board{h, w, m}
+	b := Board{w, h, m}
 	return &b
 }
 
 // Method implements Stringer interface for Board struct.
-func (b Board) String() string {
+func (b *Board) String() string {
 	s := fmt.Sprint("Board (", b.Width, "x", b.Height, ") {\n")
-	visited := []*StoneGroup{}
-	for _, e := range b.StoneMap {
-		v := false
-		for _, vsg := range visited {
-			if vsg == e {
-				v = true
-			}
-		}
-		if !v {
-			s += fmt.Sprintln(*e)
-			visited = append(visited, e)
-		}
+	for _, e := range b.GetAllStoneGroups() {
+		s += fmt.Sprintln(e)
 	}
 	return s + "}"
+}
+
+// Method returns a deep copy of a Board struct.
+func (b *Board) Copy() *Board {
+	nb := NewBoard(b.Width, b.Height)
+	for _, e := range b.GetAllStoneGroups() {
+		csg := e.Copy()
+		for _, p := range csg.Stones {
+			nb.StoneMap[p] = csg
+		}
+	}
+	return nb
 }
 
 // Method returns a pointer to the StoneGroup occupying a point.
@@ -60,18 +62,36 @@ func (b *Board) GetStoneGroup(p Point) *StoneGroup {
 	return nil
 }
 
-// Method adds a stone to the board at a point.
-func (b *Board) PlaceStone(c Player, p Point) error {
+// Method returns a slice of pointers to all unique StoneGroups.
+func (b *Board) GetAllStoneGroups() []*StoneGroup {
+	v := []*StoneGroup{}
+	for _, e := range b.StoneMap {
+		f := false
+		for _, vsg := range v {
+			if vsg == e {
+				f = true
+				break
+			}
+		}
+		if !f {
+			v = append(v, e)
+		}
+	}
+	return v
+}
+
+// Method returns a new Board with a Player stone played at a Point.
+func (b *Board) PlaceStone(turn Player, p Point) (*Board, error) {
 	// error checking
-	if !isOnBoard(*b, p) {
-		return errors.New("Given point is not within the board.")
+	if !isOnBoard(b, p) {
+		return nil, errors.New("Given point is not within the board.")
 	}
 	if b.GetStoneGroup(p) != nil {
-		return errors.New("Given point on the board is already occupied.")
+		return nil, errors.New("Given point on the board is already occupied.")
 	}
 
 	// initialize utilities
-	addGroup := func(list []*StoneGroup, item *StoneGroup) []*StoneGroup {
+	add_group := func(list []*StoneGroup, item *StoneGroup) []*StoneGroup {
 		for _, e := range list {
 			if e == item {
 				return list
@@ -82,41 +102,51 @@ func (b *Board) PlaceStone(c Player, p Point) error {
 	adj_same := []*StoneGroup{}
 	adj_opp := []*StoneGroup{}
 	adj_lib := []Point{}
+	new_board := b.Copy()
 
 	// collect information about neighbors
 	for _, e := range p.Neighbors() {
-		if !isOnBoard(*b, e) {
+		if !isOnBoard(b, e) {
 			continue
 		}
-		nsg := b.GetStoneGroup(e)
+		nsg := new_board.GetStoneGroup(e)
 		if nsg == nil {
 			adj_lib = append(adj_lib, e)
 			continue
 		}
-		if nsg.Color == c {
-			adj_same = addGroup(adj_same, nsg)
+		if nsg.Color == turn {
+			adj_same = add_group(adj_same, nsg)
 		} else {
-			adj_opp = addGroup(adj_opp, nsg)
+			adj_opp = add_group(adj_opp, nsg)
 		}
 	}
 
 	// apply game logic
-	newsg := &StoneGroup{c, []Point{p}, adj_lib}
+	newsg := StoneGroup{turn, []Point{p}, adj_lib}
 	for _, e := range adj_same {
-		newsg.MergeWith(*e)
+		err := newsg.MergeIn(e)
+		if err != nil {
+			return nil, err
+		}
 	}
 	for _, e := range newsg.Stones {
-		b.StoneMap[e] = newsg
+		new_board.StoneMap[e] = &newsg
 	}
 	for _, e := range adj_opp {
-		e.RemoveLiberty(p)
+		err := e.RemoveLiberty(p)
+		if err != nil {
+			return new_board, err
+		}
 	}
 	for _, e := range adj_opp {
 		if e.NumLiberties() == 0 {
-			b.removeStones(e)
+			err := new_board.removeStones(e)
+			if err != nil {
+				return new_board, err
+			}
 		}
 	}
-	return nil
+	return new_board, nil
 }
 
 // Method removes a StoneGroup from the board.
@@ -128,12 +158,15 @@ func (b *Board) removeStones(sg *StoneGroup) error {
 	}
 	for _, e := range sg.Stones {
 		for _, p := range e.Neighbors() {
-			if !isOnBoard(*b, p) {
+			if !isOnBoard(b, p) {
 				continue
 			}
 			nsg := b.GetStoneGroup(p)
 			if nsg != nil && nsg != sg {
-				nsg.AddLiberty(e)
+				err := nsg.AddLiberty(e)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		b.StoneMap[e] = nil
@@ -142,7 +175,7 @@ func (b *Board) removeStones(sg *StoneGroup) error {
 }
 
 // Utility function checks whether a point is within the board.
-func isOnBoard(b Board, p Point) bool {
+func isOnBoard(b *Board, p Point) bool {
 	b1 := (1 <= p.Row) && (p.Row <= b.Height)
 	b2 := (1 <= p.Col) && (p.Col <= b.Width)
 	return b1 && b2

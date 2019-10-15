@@ -12,8 +12,17 @@ type StoneGroup struct {
 	Liberties []Point
 }
 
+// Method returns a deep copy of a StoneGroup struct.
+func (sg *StoneGroup) Copy() *StoneGroup {
+	ns := make([]Point, sg.NumStones()))
+	copy(ns, sg.Stones)
+	nl := make([]Point, sg.NumLiberties())
+	copy(nl, sg.Liberties)
+	return &StoneGroup{sg.Color, ns, nl}
+}
+
 // Method implements Stringer interface for StoneGroup struct.
-func (sg StoneGroup) String() string {
+func (sg *StoneGroup) String() string {
 	s1, s2, s3 := "StoneGroup{\n -Color: ", " -Stones: ", "\n -Liberties: "
 	c := "Black\n"
 	if sg.Color != Black {
@@ -23,39 +32,39 @@ func (sg StoneGroup) String() string {
 }
 
 // Method returns the number of liberties in a StoneGroup.
-func (sg StoneGroup) NumLiberties() int {
+func (sg *StoneGroup) NumLiberties() int {
 	return len(sg.Liberties)
 }
 
 // Method returns the number of stones in a StoneGroup.
-func (sg StoneGroup) NumStones() int {
+func (sg *StoneGroup) NumStones() int {
 	return len(sg.Stones)
 }
 
 // Method for adding a liberty to a StoneGroup.
 func (sg *StoneGroup) AddLiberty(p Point) error {
-	if _, b := contains(sg.Liberties, p); !b {
+	if _, b := contains(sg.Liberties, p); b {
+		return errors.New("StoneGroup already contains the given liberty.")
+	} else {
 		sg.Liberties = append(sg.Liberties, p)
 		return nil
-	} else {
-		return errors.New("StoneGroup already contains the given liberty.")
 	}
 }
 
 // Method for removing a liberty to a StoneGroup.
 func (sg *StoneGroup) RemoveLiberty(p Point) error {
-	if i, b := contains(sg.Liberties, p); b {
-		s := sg.Liberties
-		s[len(s)-1], s[i] = s[i], s[len(s)-1]
-    	sg.Liberties = s[:len(s)-1]
-    	return nil
+	if i, b := contains(sg.Liberties, p); !b {
+		return errors.New("StoneGroup doesn't have the given liberty.")
 	} else {
-		return errors.New("StoneGroup already contains the given stone.")
+		s, l := sg.Liberties, sg.NumLiberties()
+		s[l-1], s[i] = s[i], s[l-1]
+    	sg.Liberties = s[:l-1]
+    	return nil
 	}
 }
 
-// Method for merging a StoneGroup with another passed StoneGroup.
-func (sg *StoneGroup) MergeWith(mg StoneGroup) error {
+// Method for merging in a StoneGroup with another passed StoneGroup.
+func (sg *StoneGroup) MergeIn(mg *StoneGroup) error {
 	if sg.Color != mg.Color {
 		return errors.New("Cannot merge StoneGroup of different player color.")
 	}
