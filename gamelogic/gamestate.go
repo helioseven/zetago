@@ -9,7 +9,7 @@ import (
 type GameState struct {
 	BoardPosition *Board
 	PlayerTurn Player
-	PreviousState *GameState
+	PrevState *GameState
 	LastMove *Move
 }
 
@@ -42,13 +42,33 @@ func (gs *GameState) ApplyMove(p Player, m Move) (*GameState, error) {
 		if err != nil {
 			return nil, err
 		}
-		// ** check to see if move is valid **
+		if next.GetStoneGroup(m.Pnt).NumLiberties() == 0 {
+			return nil, errors.New("Move results in self capture.")
+		}
+		if gs.IsBoardKo(next) {
+			return nil, errors.New("Move violates the ko rule.")
+		}
 	} else {
 		next = gs.BoardPosition.Copy()
 	}
 	return &GameState{next, p.Other(), gs, &m}, nil
 }
 
+// Method recursively searches through previous game states looking for a matching board.
+func (gs *GameState) IsBoardKo(b *Board) bool {
+	cs := gs
+	for {
+		cb := cs.BoardPosition
+		if b.Equal(cb) {
+			return true
+		} else if cs.PrevState == nil || cs.PrevState == gs {
+			return false
+		}
+		cs = cs.PrevState
+	}
+}
+
+// Method determines if a GameState represents a finished game.
 func (gs *GameState) IsOver() bool {
 	lm := gs.LastMove
 	if lm == nil {
@@ -57,7 +77,7 @@ func (gs *GameState) IsOver() bool {
 	if lm.IsResign {
 		return true
 	}
-	slm := gs.PreviousState.LastMove
+	slm := gs.PrevState.LastMove
 	if slm == nil {
 		return false
 	}

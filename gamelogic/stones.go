@@ -14,11 +14,33 @@ type StoneGroup struct {
 
 // Method returns a deep copy of a StoneGroup struct.
 func (sg *StoneGroup) Copy() *StoneGroup {
-	ns := make([]Point, sg.NumStones()))
+	ns := make([]Point, sg.NumStones())
 	copy(ns, sg.Stones)
 	nl := make([]Point, sg.NumLiberties())
 	copy(nl, sg.Liberties)
 	return &StoneGroup{sg.Color, ns, nl}
+}
+
+// Method returns a boolean comparison of two StoneGroup structs.
+func (sg *StoneGroup) Equal(c *StoneGroup) bool {
+	if c == nil {
+		return false
+	}
+	b1, b2, b3 := c.Color != sg.Color, c.NumStones() != sg.NumStones(), c.NumLiberties() != sg.NumLiberties()
+	if b1 || b2 || b3 {
+		return false
+	}
+	for _, e := range sg.Stones {
+		if _, t := contains(c.Stones, e); !t {
+			return false
+		}
+	}
+	for _, e := range sg.Liberties {
+		if _, t := contains(c.Liberties, e); !t {
+			return false
+		}
+	}
+	return true
 }
 
 // Method implements Stringer interface for StoneGroup struct.

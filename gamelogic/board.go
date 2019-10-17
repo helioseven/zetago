@@ -33,15 +33,6 @@ func NewBoard(w uint16, h uint16) *Board {
 	return &b
 }
 
-// Method implements Stringer interface for Board struct.
-func (b *Board) String() string {
-	s := fmt.Sprint("Board (", b.Width, "x", b.Height, ") {\n")
-	for _, e := range b.GetAllStoneGroups() {
-		s += fmt.Sprintln(e)
-	}
-	return s + "}"
-}
-
 // Method returns a deep copy of a Board struct.
 func (b *Board) Copy() *Board {
 	nb := NewBoard(b.Width, b.Height)
@@ -52,6 +43,42 @@ func (b *Board) Copy() *Board {
 		}
 	}
 	return nb
+}
+
+// Method returns a boolean comparison of two Board structs.
+func (b *Board) Equal(c *Board) bool {
+	if c == nil {
+		return false
+	}
+	if b.Width != c.Width || b.Height != c.Height {
+		return false
+	}
+	bsg, csg := b.GetAllStoneGroups(), c.GetAllStoneGroups()
+	if len(bsg) != len(csg) {
+		return false
+	}
+	for _, e1 := range bsg {
+		t := false
+		for _, e2 := range csg {
+			if e1.Equal(e2) {
+				t = true
+				break
+			}
+		}
+		if !t {
+			return false
+		}
+	}
+	return true
+}
+
+// Method implements Stringer interface for Board struct.
+func (b *Board) String() string {
+	s := fmt.Sprint("Board (", b.Width, "x", b.Height, ") {\n")
+	for _, e := range b.GetAllStoneGroups() {
+		s += fmt.Sprintln(e)
+	}
+	return s + "}"
 }
 
 // Method returns a pointer to the StoneGroup occupying a point.
@@ -66,6 +93,9 @@ func (b *Board) GetStoneGroup(p Point) *StoneGroup {
 func (b *Board) GetAllStoneGroups() []*StoneGroup {
 	v := []*StoneGroup{}
 	for _, e := range b.StoneMap {
+		if e == nil {
+			continue
+		}
 		f := false
 		for _, vsg := range v {
 			if vsg == e {
